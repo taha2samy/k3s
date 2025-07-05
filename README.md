@@ -93,3 +93,7 @@ Before you begin, ensure you have the following installed and configured:
     *   **you will find private authentication key :**
         `my-k8s-cluster-ssh-key.pem` in working directory
     
+
+        ![Infrastructure Provisioning](img/pasted fi1le.png)
+
+        ![Cluster Setup](img/pasted file.png)
