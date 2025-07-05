@@ -84,28 +84,12 @@ Before you begin, ensure you have the following installed and configured:
         ```bash
         kubectl get nodes
         ```
+    #   ** for pull image from ECR:**
+        ```
+        kubectl apply -f deployment/nginx-ecr-deployment.yaml
+        ```
+
         You should see your `controlplane` and `worker` nodes, all with a `Ready` status. It might take a few moments for all nodes to become ready.
     *   **you will find private authentication key :**
         `my-k8s-cluster-ssh-key.pem` in working directory
-
-## Key Scripts and Fixes Implemented
-
-This project includes several automated fixes to ensure a smooth deployment:
-
-*   **`master-cloud-init.sh.tpl`:**
-    *   **Automatic `kubectl` Configuration:** Copies `/etc/kubernetes/admin.conf` to the `ubuntu` user's home directory (`~/.kube/config`) and sets the correct permissions. This solves common `permission denied` errors when using `kubectl` on the master node.
-    *   **Automatic `PriorityClass` Creation:** Checks for and creates the `system-node-critical` and `system-cluster-critical` `PriorityClasses` if they don't exist, preventing a common error that stops `kube-apiserver` from starting.
-    *   **Robust CNI Application:** Directly applies the Calico CNI manifest within the `cloud-init` script and includes a wait loop to ensure the API server is ready before attempting the application, preventing `connection refused` errors.
-
-*   **`worker-node/main.tf`:**
-    *   **Reliable Node Readiness Check:** The `label_workers` provisioner includes a robust check that waits for the worker node's `Ready` condition to be `True` before attempting to apply a label.
-    *   **Correct `kubectl` Invocation:** Uses the correct `kubeconfig` file on the master node (`/home/ubuntu/.kube/config`) to execute labeling commands, avoiding permission issues.
-
-## Destroying the Infrastructure
-
-To avoid ongoing AWS charges, you can destroy all the resources created by this project with a single command:
-
-```bash
-terraform destroy --auto-approve
-```
-**Important:** Also, remember to delete the locally generated files (`my-k8s-cluster-ssh-key.pem`, `kubeconfig-master.conf`, and `kubeadm_join_command`) if you no longer need them.
+    

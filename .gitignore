@@ -7,3 +7,4 @@ kubeadm_join_command
 ecr-image-pull-secret.json
 .terraform.tfstate.lock.info
 terraform.tfstate.backup
+terraform.tfstate
