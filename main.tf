@@ -54,6 +54,7 @@ module "vpc" {
 
 module "master_node" {
   source           = "./modules/master-node"
+  instance_profile_name = aws_iam_instance_profile.k8s_instance_profile.name
   ami_id           = data.aws_ami.ubuntu.id
   instance_type    = var.master_instance_type
   key_name         = aws_key_pair.generated_key.key_name
@@ -87,6 +88,7 @@ module "worker_nodes" {
   source           = "./modules/worker-node"
   depends_on       = [module.master_node.master_setup, null_resource.set_private_key_permissions]
   ami_id           = data.aws_ami.ubuntu.id
+  instance_profile_name = aws_iam_instance_profile.k8s_instance_profile.name
   instance_type    = var.worker_instance_type
   key_name         = aws_key_pair.generated_key.key_name
   private_key_path = local_file.k8s_private_key_file.filename

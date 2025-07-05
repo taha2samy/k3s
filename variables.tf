@@ -33,3 +33,8 @@ variable "ssh_user" {
   type        = string
   default     = "ubuntu"
 }
+variable "k8s_namespace" {
+  description = "The Kubernetes namespace where resources will be created."
+  type        = string
+  default     = "default"
+}

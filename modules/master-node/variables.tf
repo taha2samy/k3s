@@ -2,7 +2,10 @@ variable "ami_id" {
   description = "The AMI ID for the EC2 instances."
   type        = string
 }
-
+variable "instance_profile_name" {
+  description = "The name of the IAM instance profile to attach to the instance."
+  type        = string
+}
 variable "instance_type" {
   description = "The instance type for the master node."
   type        = string

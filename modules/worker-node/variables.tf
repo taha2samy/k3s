@@ -34,7 +34,10 @@ variable "worker_count" {
   type        = number
   default     = 2
 }
-
+variable "instance_profile_name" {
+  description = "The name of the IAM instance profile to attach to the instance."
+  type        = string
+}
 variable "cluster_name" {
   description = "The name of the Kubernetes cluster."
   type        = string

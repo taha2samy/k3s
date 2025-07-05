@@ -1,6 +1,9 @@
 /.terraform/
-.pem
+*.pem
 .terraform.tfstate
 .terraform.tfstate.backup
 kubeconfig-master.conf
 kubeadm_join_command
+ecr-image-pull-secret.json
+.terraform.tfstate.lock.info
+terraform.tfstate.backup

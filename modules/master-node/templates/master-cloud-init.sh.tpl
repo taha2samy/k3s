@@ -31,9 +31,7 @@ else
     echo "Kubernetes cluster appears to be already initialized (admin.conf exists)."
 fi
 
-# IMPORTANT FIX: Create PriorityClasses here if not present.
-# This prevents the "no PriorityClass with name system-node-critical was found" error.
-# This part is executed after the kubeadm init.
+
 if ! sudo kubectl --kubeconfig=/etc/kubernetes/admin.conf get priorityclass system-node-critical >/dev/null 2>&1; then
     echo "Creating system-node-critical and system-cluster-critical PriorityClasses..."
     cat <<EOF | sudo tee /etc/kubernetes/manifests/priority-classes.yaml
@@ -56,4 +54,34 @@ EOF
     sudo kubectl --kubeconfig=/etc/kubernetes/admin.conf apply -f /etc/kubernetes/manifests/priority-classes.yaml
 fi
 
-echo "Kubernetes master node setup completed."
+# --- ECR SECRET CREATION ---
+echo "Configuring ECR Image Pull Secret..."
+
+if ! command -v aws &> /dev/null; then
+    sudo apt-get update
+    sudo apt-get install -y awscli
+fi
+
+AWS_REGION=$$(curl -s http://169.254.169.254/latest/meta-data/placement/region)
+AWS_ACCOUNT_ID=$$(curl -s http://169.254.169.254/latest/dynamic/instance-identity/document | grep accountId | awk -F\" '{print $$4}')
+ECR_REGISTRY="$${AWS_ACCOUNT_ID}.dkr.ecr.$${AWS_REGION}.amazonaws.com"
+
+ECR_SECRET_NAME="ecr-registry-secret"
+DEFAULT_NAMESPACE="default"
+
+ECR_PASSWORD=$$(aws ecr get-login-password --region "$${AWS_REGION}")
+
+# Create the Kubernetes secret for ECR
+sudo kubectl --kubeconfig=/home/${ansible_user}/.kube/config create secret docker-registry "$${ECR_SECRET_NAME}" \
+  --docker-server="$${ECR_REGISTRY}" \
+  --docker-username=AWS \
+  --docker-password="$${ECR_PASSWORD}" \
+  --namespace="$${DEFAULT_NAMESPACE}" \
+  --dry-run=client -o yaml | sudo kubectl --kubeconfig=/home/${ansible_user}/.kube/config apply -f -
+
+# Patch the default service account to use this secret
+sudo kubectl --kubeconfig=/home/${ansible_user}/.kube/config patch serviceaccount default \
+  -n "$${DEFAULT_NAMESPACE}" \
+  -p "{\"imagePullSecrets\": [{\"name\": \"$${ECR_SECRET_NAME}\"}]}"
+
+echo "ECR Image Pull Secret configured for the 'default' service account."
