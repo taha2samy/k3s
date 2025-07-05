@@ -85,20 +85,22 @@ data "local_file" "kubeconfig_master_file" {
 }
 
 module "worker_nodes" {
-  source           = "./modules/worker-node"
-  depends_on       = [module.master_node.master_setup, null_resource.set_private_key_permissions]
-  ami_id           = data.aws_ami.ubuntu.id
-  instance_profile_name = aws_iam_instance_profile.k8s_instance_profile.name
-  instance_type    = var.worker_instance_type
-  key_name         = aws_key_pair.generated_key.key_name
-  private_key_path = local_file.k8s_private_key_file.filename
-  subnet_ids       = module.vpc.public_subnet_ids
-  security_group_id = module.vpc.worker_sg_id
-  worker_count     = var.worker_count
-  cluster_name     = var.cluster_name
-  kubeadm_join_command = data.local_file.kubeadm_join_command_file.content
-  kubeconfig_content   = data.local_file.kubeconfig_master_file.content
-  master_public_ip     = module.master_node.master_public_ip
-  ansible_user         = var.ssh_user
-}
+  source = "./modules/worker-node"
+  
+  depends_on = [module.master_node.master_setup]
 
+  desired_worker_count = 2
+  min_worker_count     = 1
+  max_worker_count     =  3
+  kubeconfig_content    = data.local_file.kubeconfig_master_file.content
+  ami_id                = data.aws_ami.ubuntu.id
+  instance_profile_name = aws_iam_instance_profile.k8s_instance_profile.name
+  instance_type         = var.worker_instance_type
+  key_name              = aws_key_pair.generated_key.key_name
+  subnet_ids            = module.vpc.public_subnet_ids
+  security_group_id     = module.vpc.worker_sg_id
+  cluster_name          = var.cluster_name
+  kubeadm_join_command  = data.local_file.kubeadm_join_command_file.content
+  ansible_user          = var.ssh_user
+
+}

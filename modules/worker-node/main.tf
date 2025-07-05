@@ -1,49 +1,49 @@
-resource "aws_instance" "worker" {
-  count         = var.worker_count
-  ami           = var.ami_id
+resource "aws_launch_template" "worker_lt" {
+  name_prefix   = "${var.cluster_name}-worker-lt-"
+  image_id      = var.ami_id
   instance_type = var.instance_type
   key_name      = var.key_name
-  subnet_id     = var.subnet_ids[count.index % length(var.subnet_ids)]
-  vpc_security_group_ids = [var.security_group_id]
-  iam_instance_profile = var.instance_profile_name
 
-  user_data = templatefile("${path.module}/templates/worker-cloud-init.sh.tpl", {
+  vpc_security_group_ids = [var.security_group_id]
+  iam_instance_profile {
+    name = var.instance_profile_name
+  }
+
+  user_data = base64encode(templatefile("${path.module}/templates/worker-cloud-init.sh.tpl", {
     common_prereqs_script = file("${path.root}/scripts/common-k8s-prereqs.sh.tpl"),
-    worker_index          = count.index + 1,
     kubeadm_join_command  = var.kubeadm_join_command,
     kubeconfig_content    = var.kubeconfig_content,
     ansible_user          = var.ansible_user
-  })
+  }))
 
-  tags = {
-    Name = "${var.cluster_name}-worker-${count.index + 1}"
+  metadata_options {
+    http_endpoint               = "enabled"
+    http_tokens                 = "optional"
+    instance_metadata_tags      = "enabled"
+    http_put_response_hop_limit = 2
+  }
+
+  lifecycle {
+    create_before_destroy = true
   }
 }
 
-resource "null_resource" "label_workers" {
-  depends_on = [aws_instance.worker]
-
-  connection {
-    type        = "ssh"
-    host        = var.master_public_ip
-    user        = var.ansible_user
-    private_key = file(var.private_key_path)
-    timeout     = "5m"
+resource "aws_autoscaling_group" "worker_asg" {
+  name                = "${var.cluster_name}-worker-asg"
+  vpc_zone_identifier = var.subnet_ids
+  desired_capacity    = var.desired_worker_count
+  min_size            = var.min_worker_count
+  max_size            = var.max_worker_count
+  launch_template {
+    id      = aws_launch_template.worker_lt.id
+    version = "$Latest"
+  }
+  health_check_type         = "EC2"
+  health_check_grace_period = 30
+  tag {
+    key                 = "Name"
+    value               = "${var.cluster_name}-worker"
+    propagate_at_launch = true
   }
 
-provisioner "remote-exec" {
-  inline = [
-    # 1. Wait for the kubeconfig file to become available and readable. This part is correct and remains.
-    "timeout 300 bash -c 'while [ ! -f /home/${var.ansible_user}/.kube/config ] || [ ! -r /home/${var.ansible_user}/.kube/config ]; do echo \\\"Waiting for kubeconfig file...\\\"; sleep 5; done'",
-
-    # 2. (THE FIX) Wait in a loop until the node is both registered (found) AND in a Ready state.
-    # This loop will tolerate 'NotFound' errors and keep retrying.
-    # We add a small internal timeout to 'kubectl wait' and a longer external timeout for the whole process.
-    "timeout 480 bash -c 'while ! kubectl --kubeconfig=/home/${var.ansible_user}/.kube/config wait --for=condition=Ready node/worker${count.index + 1} --timeout=20s > /dev/null 2>&1; do echo \"Waiting for node worker${count.index + 1} to register and become Ready...\"; sleep 10; done'",
-
-    # 3. Once the node is ready, label it. The output is suppressed to keep the logs clean.
-    "kubectl --kubeconfig=/home/${var.ansible_user}/.kube/config label node worker${count.index + 1} node-role.kubernetes.io/worker=worker --overwrite=true > /dev/null",
-  ]
-}
-  count = var.worker_count
 }
