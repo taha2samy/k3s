@@ -89,9 +89,9 @@ module "worker_nodes" {
   
   depends_on = [module.master_node.master_setup]
 
-  desired_worker_count = 2
-  min_worker_count     = 1
-  max_worker_count     =  3
+  desired_worker_count = var.desired_capacity
+  min_worker_count     = var.min_worker_count
+  max_worker_count     =  var.max_worker_count
   kubeconfig_content    = data.local_file.kubeconfig_master_file.content
   ami_id                = data.aws_ami.ubuntu.id
   instance_profile_name = aws_iam_instance_profile.k8s_instance_profile.name
