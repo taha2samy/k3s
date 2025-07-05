@@ -1,0 +1,6 @@
+/.terraform/
+.pem
+.terraform.tfstate
+.terraform.tfstate.backup
+kubeconfig-master.conf
+kubeadm_join_command
